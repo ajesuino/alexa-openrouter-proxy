@@ -7,7 +7,7 @@ app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Trata requisições da Alexa
+// Endpoint principal da Alexa
 app.post('/alexa', async (req, res) => {
   const requestType = req.body.request?.type;
   const intentName = req.body.request?.intent?.name;
@@ -29,21 +29,59 @@ app.post('/alexa', async (req, res) => {
   return res.json(buildResponse("Desculpe, não entendi a solicitação."));
 });
 
-// Resposta formatada para Alexa
-function buildResponse(speechText) {
-  return {
-    version: '1.0',
-    response: {
-      outputSpeech: {
-        type: 'PlainText',
-        text: speechText
-      },
-      shouldEndSession: true
-    }
-  };
+// Rota para testes via Postman ou requisições diretas
+app.post('/perguntar', async (req, res) => {
+  const pergunta = req.body.pergunta || 'nada';
+
+  try {
+    const respostaIA = await chamarIAOpenRouter(pergunta);
+    res.json({ resposta: respostaIA });
+  } catch (err) {
+    res.status(500).json({ erro: err.message || 'erro desconhecido' });
+  }
+});
+
+// Função que chama o OpenRouter API
+async function chamarIAOpenRouter(pergunta) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: pergunta }]
+    });
+
+    const options = {
+      hostname: 'openrouter.ai',
+      path: '/api/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(body);
+          const resposta = parsed.choices?.[0]?.message?.content;
+          if (resposta) resolve(resposta);
+          else reject(new Error('Resposta vazia da IA'));
+        } catch (e) {
+          reject(new Error('Resposta inválida da IA'));
+        }
+      });
+    });
+
+    req.on('error', e => reject(new Error('Erro de conexão com IA: ' + e.message)));
+    req.write(data);
+    req.end();
+  });
 }
 
-// Função para chamar o OpenRouter via seu proxy atual
+// Função que chama a rota interna do servidor via HTTPS
 function chamarServidorIA(pergunta) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({ pergunta });
@@ -65,23 +103,37 @@ function chamarServidorIA(pergunta) {
         try {
           const parsed = JSON.parse(body);
           resolve(parsed.resposta || 'A IA não respondeu.');
-        } catch (e) {
+        } catch (_) {
           reject(new Error('Resposta inválida da IA'));
         }
       });
     });
 
-    req.on('error', (e) => reject(e));
+    req.on('error', () => reject(new Error('Erro na conexão HTTPS')));
     req.write(data);
     req.end();
   });
 }
 
-// Rota simples para verificar status
+// Resposta formatada para Alexa
+function buildResponse(speechText) {
+  return {
+    version: '1.0',
+    response: {
+      outputSpeech: {
+        type: 'PlainText',
+        text: speechText
+      },
+      shouldEndSession: true
+    }
+  };
+}
+
+// Rota básica de verificação
 app.get('/', (req, res) => {
   res.send('Servidor da IA está online.');
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Servidor escutando na porta ${PORT}`);
+  console.log(`✅ Servidor rodando na porta ${PORT}`);
 });
