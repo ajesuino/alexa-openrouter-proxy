@@ -19,7 +19,7 @@ app.post('/alexa', async (req, res) => {
 
   if (requestType === 'IntentRequest' && intentName === 'PerguntarIAIntent') {
     try {
-      const resposta = await chamarServidorIA(slotValue);
+      const resposta = await chamarIAOpenRouter(slotValue); // ✅ Chamada direta
       return res.json(buildResponse(resposta));
     } catch (e) {
       return res.json(buildResponse("Erro ao acessar a inteligência artificial: " + e.message));
@@ -29,7 +29,7 @@ app.post('/alexa', async (req, res) => {
   return res.json(buildResponse("Desculpe, não entendi a solicitação."));
 });
 
-// Rota para testes via Postman ou requisições diretas
+// Rota para testes via Postman
 app.post('/perguntar', async (req, res) => {
   const pergunta = req.body.pergunta || 'nada';
 
@@ -76,40 +76,6 @@ async function chamarIAOpenRouter(pergunta) {
     });
 
     req.on('error', e => reject(new Error('Erro de conexão com IA: ' + e.message)));
-    req.write(data);
-    req.end();
-  });
-}
-
-// Função que chama a rota interna do servidor via HTTPS
-function chamarServidorIA(pergunta) {
-  return new Promise((resolve, reject) => {
-    const data = JSON.stringify({ pergunta });
-
-    const options = {
-      hostname: 'alexa-openrouter-proxy.onrender.com',
-      path: '/perguntar',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(body);
-          resolve(parsed.resposta || 'A IA não respondeu.');
-        } catch (_) {
-          reject(new Error('Resposta inválida da IA'));
-        }
-      });
-    });
-
-    req.on('error', () => reject(new Error('Erro na conexão HTTPS')));
     req.write(data);
     req.end();
   });
