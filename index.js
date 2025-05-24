@@ -1,6 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const https = require('https');
+const path = require('path');
 
 const app = express();
 app.use(bodyParser.json());
@@ -20,7 +21,7 @@ function registrarLog(pergunta, resposta, duracaoMs) {
   if (logs.length > 100) logs.pop();
 }
 
-// Endpoint principal da Alexa (mantido para compatibilidade)
+// Compatibilidade com Alexa
 app.post('/alexa', async (req, res) => {
   const requestType = req.body.request?.type;
   const intentName = req.body.request?.intent?.name;
@@ -35,7 +36,6 @@ app.post('/alexa', async (req, res) => {
       const inicio = Date.now();
       const resposta = await chamarIAOpenRouter(slotValue);
       const fim = Date.now();
-
       registrarLog(slotValue, resposta, fim - inicio);
       return res.json(buildResponse(resposta));
     } catch (e) {
@@ -46,7 +46,7 @@ app.post('/alexa', async (req, res) => {
   return res.json(buildResponse("Desculpe, não entendi a solicitação."));
 });
 
-// Rota para testes via Postman
+// Endpoint principal via Postman ou app
 app.post('/perguntar', async (req, res) => {
   const pergunta = req.body.pergunta || 'nada';
 
@@ -59,6 +59,32 @@ app.post('/perguntar', async (req, res) => {
     res.json({ resposta: respostaIA });
   } catch (err) {
     res.status(500).json({ erro: err.message || 'erro desconhecido' });
+  }
+});
+
+// Rota para gerar pergunta estilo quiz com IA
+app.get('/quiz/pergunta', async (req, res) => {
+  const prompt = `Gere uma pergunta de múltipla escolha de cultura geral. Responda neste formato JSON:
+{
+  "pergunta": "...",
+  "alternativas": ["opção1", "opção2", "opção3", "opção4", "opção5"],
+  "correta": "..."
+}
+As alternativas devem parecer plausíveis, e a correta deve estar incluída na lista.`;
+
+  try {
+    const inicio = Date.now();
+    const resposta = await chamarIAOpenRouter(prompt);
+    const fim = Date.now();
+    registrarLog('Nova pergunta para quiz', resposta, fim - inicio);
+
+    const match = resposta.match(/\{[\s\S]+\}/);
+    if (!match) throw new Error("IA não retornou JSON válido.");
+
+    const json = JSON.parse(match[0]);
+    res.json(json);
+  } catch (e) {
+    res.status(500).json({ erro: "Erro ao gerar pergunta: " + e.message });
   }
 });
 
@@ -140,69 +166,13 @@ app.get('/dashboard', (req, res) => {
   res.send(html);
 });
 
-// Interface web leve para teste
-app.get('/web', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8">
-      <title>Ciborgue Azul - Web</title>
-      <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-        input, button { font-size: 16px; padding: 10px; width: 100%; margin-top: 10px; }
-        .resposta { margin-top: 20px; padding: 10px; background: #eef; border-radius: 5px; }
-      </style>
-    </head>
-    <body>
-      <h1>Ciborgue Azul 🤖</h1>
-      <p>Digite sua pergunta abaixo:</p>
-      <input id="pergunta" type="text" placeholder="Ex: O que é uma estrela?" />
-      <button onclick="enviar()">Perguntar</button>
-      <div class="resposta" id="resposta"></div>
-
-      <script>
-        async function enviar() {
-          const texto = document.getElementById('pergunta').value;
-          const respostaDiv = document.getElementById('resposta');
-          respostaDiv.innerText = '⏳ Processando...';
-
-          try {
-            const res = await fetch('/perguntar', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ pergunta: texto })
-            });
-            const data = await res.json();
-            respostaDiv.innerText = data.resposta || '❌ Sem resposta.';
-          } catch (err) {
-            respostaDiv.innerText = '⚠️ Erro na solicitação.';
-          }
-        }
-      </script>
-    </body>
-    </html>
-  `);
-});
-
-// Resposta formatada para Alexa
-function buildResponse(speechText) {
-  return {
-    version: '1.0',
-    response: {
-      outputSpeech: {
-        type: 'PlainText',
-        text: speechText
-      },
-      shouldEndSession: true
-    }
-  };
-}
-
 // Rota de verificação simples
 app.get('/', (req, res) => {
   res.send('Servidor da IA está online.');
 });
+
+// Servir HTML do Quiz
+app.use('/quiz', express.static(path.join(__dirname, 'quiz')));
 
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
