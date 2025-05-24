@@ -1,15 +1,24 @@
 {
   "name": "ciborgue-azul-openrouter-proxy-ia",
   "version": "1.0.0",
-  "description": "Servidor do Ciborgue Azul com proxy para OpenRouter e interface web.",
+  "description": "Proxy leve do Ciborgue Azul usando OpenRouter e Express",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["openai", "openrouter", "proxy", "ciborgue", "ia", "chatbot", "express"],
+  "keywords": [
+    "openai",
+    "openrouter",
+    "express",
+    "proxy",
+    "chatbot",
+    "nodejs",
+    "ciborgue-azul"
+  ],
   "author": "Alberto Jesuino",
   "license": "MIT",
   "dependencies": {
+    "axios": "^1.6.8",
     "body-parser": "^1.20.2",
     "express": "^4.18.2"
   }
