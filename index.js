@@ -21,33 +21,8 @@ function registrarLog(pergunta, resposta, duracaoMs) {
   if (logs.length > 100) logs.pop();
 }
 
-// Compatibilidade com Alexa
-app.post('/alexa', async (req, res) => {
-  const requestType = req.body.request?.type;
-  const intentName = req.body.request?.intent?.name;
-  const slotValue = req.body.request?.intent?.slots?.texto?.value || '';
-
-  if (requestType === 'LaunchRequest') {
-    return res.json(buildResponse("Bem-vindo à sua inteligência artificial. Pode perguntar qualquer coisa agora."));
-  }
-
-  if (requestType === 'IntentRequest' && intentName === 'PerguntarIAIntent') {
-    try {
-      const inicio = Date.now();
-      const resposta = await chamarIAOpenRouter(slotValue);
-      const fim = Date.now();
-      registrarLog(slotValue, resposta, fim - inicio);
-      return res.json(buildResponse(resposta));
-    } catch (e) {
-      return res.json(buildResponse("Erro ao acessar a inteligência artificial: " + e.message));
-    }
-  }
-
-  return res.json(buildResponse("Desculpe, não entendi a solicitação."));
-});
-
-// Endpoint principal via Postman ou app
-app.post('/perguntar', async (req, res) => {
+// Rota de API principal para interação com IA
+app.post('/ciborgue/perguntar', async (req, res) => {
   const pergunta = req.body.pergunta || 'nada';
 
   try {
@@ -59,32 +34,6 @@ app.post('/perguntar', async (req, res) => {
     res.json({ resposta: respostaIA });
   } catch (err) {
     res.status(500).json({ erro: err.message || 'erro desconhecido' });
-  }
-});
-
-// Rota para gerar pergunta estilo quiz com IA
-app.get('/quiz/pergunta', async (req, res) => {
-  const prompt = `Gere uma pergunta de múltipla escolha de cultura geral. Responda neste formato JSON:
-{
-  "pergunta": "...",
-  "alternativas": ["opção1", "opção2", "opção3", "opção4", "opção5"],
-  "correta": "..."
-}
-As alternativas devem parecer plausíveis, e a correta deve estar incluída na lista.`;
-
-  try {
-    const inicio = Date.now();
-    const resposta = await chamarIAOpenRouter(prompt);
-    const fim = Date.now();
-    registrarLog('Nova pergunta para quiz', resposta, fim - inicio);
-
-    const match = resposta.match(/\{[\s\S]+\}/);
-    if (!match) throw new Error("IA não retornou JSON válido.");
-
-    const json = JSON.parse(match[0]);
-    res.json(json);
-  } catch (e) {
-    res.status(500).json({ erro: "Erro ao gerar pergunta: " + e.message });
   }
 });
 
@@ -133,7 +82,7 @@ app.get('/dashboard', (req, res) => {
   const html = `
     <html>
       <head>
-        <title>Dashboard IA</title>
+        <title>Dashboard do Ciborgue Azul</title>
         <style>
           body { font-family: Arial, sans-serif; padding: 20px; }
           table { width: 100%; border-collapse: collapse; }
@@ -143,7 +92,7 @@ app.get('/dashboard', (req, res) => {
         </style>
       </head>
       <body>
-        <h1>📊 Dashboard de Uso da IA</h1>
+        <h1>🤖 Dashboard do Ciborgue Azul</h1>
         <p>Total de registros: ${logs.length}</p>
         <table>
           <tr>
@@ -168,11 +117,8 @@ app.get('/dashboard', (req, res) => {
 
 // Rota de verificação simples
 app.get('/', (req, res) => {
-  res.send('Servidor da IA está online.');
+  res.send('🔵 Ciborgue Azul (Proxy OpenRouter) está online.');
 });
-
-// Servir HTML do Quiz
-app.use('/quiz', express.static(path.join(__dirname, 'quiz')));
 
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
