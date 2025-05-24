@@ -20,7 +20,7 @@ function registrarLog(pergunta, resposta, duracaoMs) {
   if (logs.length > 100) logs.pop();
 }
 
-// Endpoint principal da Alexa (pode ser mantido para compatibilidade)
+// Endpoint principal da Alexa (mantido para compatibilidade)
 app.post('/alexa', async (req, res) => {
   const requestType = req.body.request?.type;
   const intentName = req.body.request?.intent?.name;
@@ -138,6 +138,51 @@ app.get('/dashboard', (req, res) => {
     </html>
   `;
   res.send(html);
+});
+
+// Interface web leve para teste
+app.get('/web', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Ciborgue Azul - Web</title>
+      <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        input, button { font-size: 16px; padding: 10px; width: 100%; margin-top: 10px; }
+        .resposta { margin-top: 20px; padding: 10px; background: #eef; border-radius: 5px; }
+      </style>
+    </head>
+    <body>
+      <h1>Ciborgue Azul 🤖</h1>
+      <p>Digite sua pergunta abaixo:</p>
+      <input id="pergunta" type="text" placeholder="Ex: O que é uma estrela?" />
+      <button onclick="enviar()">Perguntar</button>
+      <div class="resposta" id="resposta"></div>
+
+      <script>
+        async function enviar() {
+          const texto = document.getElementById('pergunta').value;
+          const respostaDiv = document.getElementById('resposta');
+          respostaDiv.innerText = '⏳ Processando...';
+
+          try {
+            const res = await fetch('/perguntar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pergunta: texto })
+            });
+            const data = await res.json();
+            respostaDiv.innerText = data.resposta || '❌ Sem resposta.';
+          } catch (err) {
+            respostaDiv.innerText = '⚠️ Erro na solicitação.';
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `);
 });
 
 // Resposta formatada para Alexa
