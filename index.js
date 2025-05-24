@@ -57,13 +57,11 @@ app.get('/ui', (req, res) => {
           <input name="pergunta" placeholder="Digite sua pergunta..." required />
           <button type="submit">Perguntar</button>
         </form>
-        <div id="resposta">
-          ${respostaTemp ? `<strong>Resposta:</strong> ${respostaTemp}` : ''}
-        </div>
+        <div id="resposta"></div>
       </body>
     </html>
   `;
-  res.send(html.replace('${respostaTemp}', ''));
+  res.send(html);
 });
 
 // Recebe o form da UI (POST /ui)
