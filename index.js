@@ -7,29 +7,6 @@ app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Endpoint principal da Alexa
-app.post('/alexa', async (req, res) => {
-  const requestType = req.body.request?.type;
-  const intentName = req.body.request?.intent?.name;
-  const slotValue = req.body.request?.intent?.slots?.texto?.value || '';
-
-  if (requestType === 'LaunchRequest') {
-    return res.json(buildResponse("Bem-vindo à sua inteligência artificial. Pode perguntar qualquer coisa agora."));
-  }
-
-  if (requestType === 'IntentRequest' && intentName === 'PerguntarIAIntent') {
-    try {
-      const resposta = await chamarIAOpenRouter(slotValue); // ✅ Chamada direta
-      return res.json(buildResponse(resposta));
-    } catch (e) {
-      return res.json(buildResponse("Erro ao acessar a inteligência artificial: " + e.message));
-    }
-  }
-
-  return res.json(buildResponse("Desculpe, não entendi a solicitação."));
-});
-
-// Rota para testes via Postman
 app.post('/perguntar', async (req, res) => {
   const pergunta = req.body.pergunta || 'nada';
 
@@ -41,12 +18,12 @@ app.post('/perguntar', async (req, res) => {
   }
 });
 
-// Função que chama o OpenRouter API
 async function chamarIAOpenRouter(pergunta) {
   return new Promise((resolve, reject) => {
+    const prompt = `Responda de forma natural e curta, com até uma frase. Pergunta: ${pergunta}`;
     const data = JSON.stringify({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: pergunta }]
+      model: 'mistralai/mistral-7b-instruct-v0.3',
+      messages: [{ role: 'user', content: prompt }]
     });
 
     const options = {
@@ -67,39 +44,25 @@ async function chamarIAOpenRouter(pergunta) {
         try {
           const parsed = JSON.parse(body);
           const resposta = parsed.choices?.[0]?.message?.content;
-          if (resposta) resolve(resposta);
+          if (resposta) resolve(resposta.trim());
           else reject(new Error('Resposta vazia da IA'));
         } catch (e) {
-          reject(new Error('Resposta inválida da IA'));
+          reject(new Error('Erro ao interpretar resposta da IA'));
         }
       });
     });
 
-    req.on('error', e => reject(new Error('Erro de conexão com IA: ' + e.message)));
+    req.on('error', e => reject(new Error('Erro na conexão com a IA: ' + e.message)));
     req.write(data);
     req.end();
   });
 }
 
-// Resposta formatada para Alexa
-function buildResponse(speechText) {
-  return {
-    version: '1.0',
-    response: {
-      outputSpeech: {
-        type: 'PlainText',
-        text: speechText
-      },
-      shouldEndSession: true
-    }
-  };
-}
-
-// Rota básica de verificação
+// Verificação rápida
 app.get('/', (req, res) => {
-  res.send('Servidor da IA está online.');
+  res.send('🔵 Servidor da IA ativo.');
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 API disponível em http://localhost:${PORT}`);
 });
