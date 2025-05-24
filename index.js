@@ -1,7 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const https = require('https');
-const path = require('path');
 
 const app = express();
 app.use(bodyParser.json());
@@ -21,7 +20,7 @@ function registrarLog(pergunta, resposta, duracaoMs) {
   if (logs.length > 100) logs.pop();
 }
 
-// Rota de API principal para interação com IA
+// Rota principal para uso via API (Postman ou outro app)
 app.post('/ciborgue/perguntar', async (req, res) => {
   const pergunta = req.body.pergunta || 'nada';
 
@@ -37,7 +36,55 @@ app.post('/ciborgue/perguntar', async (req, res) => {
   }
 });
 
-// Função que chama o OpenRouter API
+// Rota de UI amigável para navegador
+app.get('/ui', (req, res) => {
+  const html = `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Ciborgue Azul - IA</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 30px; background: #f8f9fa; color: #333; }
+        h1 { color: #0055aa; }
+        input, button { padding: 10px; font-size: 16px; }
+        input { width: 80%; }
+        #resposta { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #fff; }
+      </style>
+    </head>
+    <body>
+      <h1>🤖 Ciborgue Azul</h1>
+      <p>Digite sua pergunta abaixo:</p>
+      <input id="pergunta" placeholder="Ex: Quem descobriu a penicilina?" />
+      <button onclick="fazerPergunta()">Perguntar</button>
+
+      <div id="resposta"></div>
+
+      <script>
+        async function fazerPergunta() {
+          const texto = document.getElementById('pergunta').value;
+          const respostaEl = document.getElementById('resposta');
+          respostaEl.innerHTML = '⏳ Processando...';
+          try {
+            const resp = await fetch('/ciborgue/perguntar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pergunta: texto })
+            });
+            const data = await resp.json();
+            respostaEl.innerHTML = '<b>Resposta:</b><br>' + (data.resposta || 'Sem resposta');
+          } catch (err) {
+            respostaEl.innerHTML = '❌ Erro ao consultar IA';
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `;
+  res.send(html);
+});
+
+// Função que chama a OpenRouter API
 async function chamarIAOpenRouter(pergunta) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({
@@ -77,7 +124,7 @@ async function chamarIAOpenRouter(pergunta) {
   });
 }
 
-// Rota de dashboard
+// Dashboard simples
 app.get('/dashboard', (req, res) => {
   const html = `
     <html>
@@ -115,7 +162,7 @@ app.get('/dashboard', (req, res) => {
   res.send(html);
 });
 
-// Rota de verificação simples
+// Página inicial
 app.get('/', (req, res) => {
   res.send('🔵 Ciborgue Azul (Proxy OpenRouter) está online.');
 });
